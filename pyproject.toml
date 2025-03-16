@@ -1,0 +1,24 @@
+[project]
+name = "doctor"
+version = "0.1.0"
+description = "Default template for PDM package"
+authors = [
+    {name = "Roman Krivtsov", email = "rax@doctor.ai"},
+]
+dependencies = [
+    "numpy>=2.2.3",
+    "fuzzywuzzy>=0.18.0",
+    "tqdm>=4.67.1",
+    "sentence-transformers>=3.4.1",
+    "scikit-learn>=1.6.1",
+    "python-Levenshtein>=0.27.1",
+    "levenshtein>=0.27.1",
+]
+requires-python = "==3.13.*"
+readme = "README.md"
+license = {text = "BSL"}
+
+
+[tool.pdm]
+distribution = false
+package-dir = {"" = "."}
