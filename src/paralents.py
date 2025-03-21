@@ -1,8 +1,6 @@
 import os
 import json
 import yaml
-import numpy as np
-from fuzzywuzzy import fuzz
 from concurrent.futures import ThreadPoolExecutor
 from itertools import product
 from tqdm import tqdm
@@ -11,6 +9,8 @@ from string import punctuation
 import re
 from multiprocessing import Value
 from src.embeddings import map_texts_cosine_with_cache
+from src.comparison import hybrid_score
+from src.files_exclusions import is_file_to_skip
 import time
 import sys
 
@@ -21,7 +21,7 @@ class Parent:
         self.type = type
         self.parent = parent
         self.items = items
-        self.hash = str(hash(",".join(items)))
+        self.hash = str(hash(",".join([str(item) for item in items])))
         self.total_scores = []
         self.matched_rights = {}
 
@@ -64,22 +64,28 @@ patterns = {
     ]
 }
 
+str_patterns = [
+    re.compile(r"[\'\"]{1}([A-Z_\-0-9a-zäßöü@\.:/ %]+)[\'\"]{1}"),
+]
+
 def should_skip_root(root, base_path):
     rel = os.path.relpath(root, base_path)
     parts = rel.split(os.sep)
     return any(p.startswith('.') for p in parts if p != '.')
 
-def collect_files_recursive(folder_path):
+def collect_files_recursive(project):
     parent_instances = []
-    for root, dirs, files in os.walk(folder_path):
+    for witem in project.walk_items:
+        root = witem.root
+        files = witem.files
+        dirs = witem.dirs
         # skip hidden folders and all its content
-        if should_skip_root(root, folder_path):
-            continue
+        # if should_skip_root(root, project.project_root):
+        #     continue
         file_list = []
         for file in files:
             file_path = os.path.join(root, file)
-            exclusions = ["README.md", "package.json", "package-lock.json", "pyproject.toml", "pdm.lock", "__init__"]
-            if "test" in file_path or file in exclusions:
+            if is_file_to_skip(file_path):
                 continue
             ext = file.lower().split('.')[-1]
 
@@ -104,6 +110,9 @@ def collect_files_recursive(folder_path):
             
             elif ext in ["py", "js", "ts"]:
                 extract_env_vars(file_path, ext, parent_instances)
+
+            elif ext in ["py", "js", "ts", ".java", ".go", ".php", ".swift", ".c", ".cpp", ".rb", ".sh", ".scala", ".rs", ".kt", ".cs", ".r", ".pl"]:
+                extract_constant_values(file_path, parent_instances)
             
             file_list.append(file.replace("." + ext, ""))
 
@@ -135,6 +144,13 @@ def extract_env_vars(file_path, ext, parent_instances):
             if matches:
                 parent_instances.append(Parent(type="EnvVar", parent=file_path, items=list(set(matches))))
 
+def extract_constant_values(file_path, parent_instances):
+    with open(file_path, 'r', encoding='utf-8') as f:
+        txt = f.read()
+        for p in str_patterns:
+            matches = p.findall(txt)
+            if matches:
+                parent_instances.append(Parent(type="EnvVar", parent=file_path, items=list(set(matches))))
 
 def collects_doc_parents(doc_path):
     readme_content = ""
@@ -196,86 +212,10 @@ def collects_doc_parents(doc_path):
     for key, items in parallel_entities.items():
         for item in items:
             if len(item) > 1:
-                res.append(Parent(type="doc_" + key, parent="", items=item))
+                res.append(Parent(type="doc_" + key, parent="README " + key, items=item))
 
     return res
 
-
-
-
-def longest_common_substring_score(a, b):
-    a, b = a.lower(), b.lower()
-    m, n = len(a), len(b)
-    if m == 0 or n == 0:
-        return 0.0
-
-    dp = [[0]*(n+1) for _ in range(m+1)]
-    max_len = 0
-    i_of_max = 0
-    j_of_max = 0
-
-    # Fill DP table
-    for i in range(m):
-        for j in range(n):
-            if a[i] == b[j]:
-                dp[i+1][j+1] = dp[i][j] + 1
-                if dp[i+1][j+1] > max_len:
-                    max_len = dp[i+1][j+1]
-                    i_of_max = i
-                    j_of_max = j
-
-    length_score = max_len / min(m, n)
-
-    # Earliest start index of the matched substring in both strings
-    start_i = i_of_max + 1 - max_len
-    start_j = j_of_max + 1 - max_len
-
-    # Position factor: the closer to the front, the higher the score
-    # This simple formula penalizes matches that start further along in the string
-    position_factor = 1.0 - ((start_i/m + start_j/n) / 2)
-    # Stronger penalty for being far from the start
-    # The substring can't start any later than n - max_len
-    denom = (n - max_len + 1) if (n - max_len + 1) else 1
-    position_factor = 1.0 - (start_j / denom)
-    position_factor = max(0, min(position_factor, 1))
-
-    return length_score * position_factor
-
-
-
-def normalize_string(txt):
-    txt = txt.replace("_", " ")
-    # If not upper case ENV_VAR style, split by camel case
-    if not re.match(r"^[A-Z ]+$", txt):
-        # setting space before capital letter
-        txt = re.sub(r'(?<!^)(?<=[^A-Z])([A-Z])', r' \1', txt)
-    return txt
-
-def hybrid_score(str1, str2, cosine):
-    """Core scoring logic with dynamic weights"""
-    # Base scores
-    str1 = normalize_string(str1)
-    str2 = normalize_string(str2)
-    
-    fuzz_rat = fuzz.token_set_ratio(str1, str2) / 100
-    lcs = longest_common_substring_score(str1, str2)
-    
-    # Dynamic weighting
-    is_short = len(str1) < 20 and len(str2) < 20
-    if is_short:
-        weights = [0.4, 0.1, 0.5]  # Focus on lexical
-    else:
-        # Here embeddings work better because of the context
-        weights = [0.2, 0.6, 0.2]  # Focus on semantic
-        
-    # Combine scores
-    base_score = np.clip(
-        (fuzz_rat * weights[0]) +
-        (cosine * weights[1]) +
-        (lcs * weights[2]),
-        0, 1
-    )
-    return base_score
 
 def compare_cosine(items1, items2):
     total_scores = []
@@ -343,10 +283,10 @@ def sort_parent_pairs(list1, list2):
     pairs.sort(key=lambda x: x[2], reverse=True)
     return pairs
 
-def report(base):
-    parent_instances = collect_files_recursive(base)
+def report(project):
+    parent_instances = collect_files_recursive(project)
 
-    doc_parents = collects_doc_parents(base + "/README.md")
+    doc_parents = collects_doc_parents(project.doc_path)
     pairs = sort_parent_pairs(parent_instances, doc_parents)
 
     print("REPORT:")
@@ -366,7 +306,7 @@ def report(base):
                     documented.append(corresponded_code_index)
                     print(f"Found item in documentation '{item}' (from {doc.parent}) matched with item in code '{code.items[corresponded_code_index]}' ({code.parent})")
             if n < len(doc.items):
-                print(f"You probably want to document other items from {code.parent}:")
+                print(f"==> RECOMMENDATION: You probably want to document other items from {code.parent}:")
                 for i, item in enumerate(code.items):
                     if i not in documented:
                         print("* " + item)
