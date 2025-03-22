@@ -1,4 +1,6 @@
 import os
+from src.files_exclusions import is_file_to_skip
+from tqdm import tqdm
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from src.embeddings import map_texts_cosine_with_cache
 
@@ -11,16 +13,24 @@ category_descriptions = {
 def report(project):
     chunks = split_readme_to_chunks(project.doc_path)
     report = ""
+    filtered_files = []
     for witem in project.walk_items:
         root = witem.root
         files = witem.files
         for file in files:
             file_path = os.path.join(root, file)
+            if is_file_to_skip(file_path):
+                continue
             cat = classify_file(file_path)
             if cat:
-                im = is_mentioned(category_descriptions[cat], chunks)
-                if not im:
-                    report += f"File {file_path} points on {cat.upper()} in your project. But it doesn't seem to be documented\n"
+                filtered_files.append((file_path, cat))
+
+    for pr in tqdm(filtered_files):
+        file_path = pr[0]
+        cat = pr[1]
+        im = is_mentioned(category_descriptions[cat], chunks)
+        if not im:
+            report += f"File {file_path} points on {cat.upper()} in your project. But it doesn't seem to be documented\n"
     print(report)
 
 def is_mentioned(description, chunks):

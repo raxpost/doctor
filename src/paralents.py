@@ -219,8 +219,8 @@ def collects_doc_parents(doc_path):
 
 def compare_cosine(items1, items2):
     total_scores = []
-    items1 = [item for item in items1 if item.strip() != ""]
-    items2 = [item for item in items2 if item.strip() != ""]
+    items1 = [str(item) for item in items1 if str(item).strip() != ""]
+    items2 = [str(item) for item in items2 if str(item).strip() != ""]
     
     matrix = map_texts_cosine_with_cache(items1, items2)
     i2s_already_matched_with_i1s = []
