@@ -11,7 +11,7 @@ exclusions = [
     "integer", "int", "float", "double", "decimal", "number",
     "string", "boolean", "bool", "null", "undefined", "object",
     "array", "date", "timestamp", "uuid", "json", "xml", "yaml",
-    "csv", "binary", "file",
+    "csv", "binary", "file", "int64", "int32"
 
     # HTTP Methods
     "get", "post", "put", "delete", "patch", "options", "head",
@@ -62,7 +62,7 @@ exclusions = [
 
     # Misc
     "id", "class", "name", "value", "type", "disabled", "checked", "readonly",
-    "visible", "hidden", "selected"
+    "visible", "hidden", "selected", "parameter", "parameters", "server", "servers"
 ]
 
 
