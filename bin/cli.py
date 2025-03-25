@@ -17,10 +17,10 @@ def start(base):
         print(e)
 
 
-MULI_FOLDER = os.getenv("MULI_FOLDER")
-if MULI_FOLDER:
-    for name in os.listdir(MULI_FOLDER):
-        full_path = os.path.join(MULI_FOLDER, name)
+MULTI_FOLDER = os.getenv("MULTI_FOLDER")
+if MULTI_FOLDER:
+    for name in os.listdir(MULTI_FOLDER):
+        full_path = os.path.join(MULTI_FOLDER, name)
         if os.path.isdir(full_path):
             print(f"============ PROJECT {name} ==============")
             start(full_path)

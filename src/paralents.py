@@ -296,6 +296,7 @@ def report(project):
             code = st[0]
             n=0
             documented = []
+            explanation_items = []
             for i, item in enumerate(doc.items):
                 if i in doc.matched_rights:
                     n+=1
@@ -304,8 +305,9 @@ def report(project):
                         print(f"WARNING. corresponded_code_index {corresponded_code_index} not found in code.items", code.items)
                         continue
                     documented.append(corresponded_code_index)
-                    print(f"Found item in documentation '{item}' (from {doc.parent}) matched with item in code '{code.items[corresponded_code_index]}' ({code.parent})")
+                    explanation_items.append(f"Found item in documentation '{item}' (from {doc.parent}) matched with item in code '{code.items[corresponded_code_index]}' ({code.parent})")
             if n < len(doc.items):
+                print("\n".join(explanation_items))
                 print(f"==> RECOMMENDATION: You probably want to document other items from {code.parent}:")
                 for i, item in enumerate(code.items):
                     if i not in documented:
