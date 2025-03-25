@@ -1,13 +1,89 @@
 import os
-from src.files_exclusions import is_file_to_skip
+from src.exclusions import is_file_to_skip
 from tqdm import tqdm
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.text_splitter import CharacterTextSplitter
 from src.embeddings import map_texts_cosine_with_cache
 
-category_descriptions = {
-    "ci_cd": "CI/CD pipelines for automated build, test, and deployment using GitHub Actions, Jenkins, or GitLab CI.",
-    "iac": "Infrastructure as code for provisioning resources using Terraform, CloudFormation, or Ansible.",
-    "config": "Configuration files with environment variables, service endpoints, and application settings."
+categories = {
+    "CI/CD": {
+        "description": "Continuous integration, Continuous delivery, CI/CD pipelines for automated build, test, and deployment using GitHub Actions, Jenkins, or GitLab CI.",
+        "files_patterns":  ["github/workflows", ".gitlab-ci", "circleci", "azure-pipelines", "jenkinsfile", "travis.yml", ".drone.yml", "ci.yml", "ci.yaml", "build.yml", "build.yaml", "pipeline.yml", "pipeline.yaml", "serverless.yml"],
+    },
+    "Infrastructure as Code": {
+        "description": "infrastructure, IaC, iac, Infrastructure as code for provisioning resources using Terraform, CloudFormation, or Ansible, infrastructure",
+        "files_patterns": [".tf", ".tf.json", ".tfvars", "terraform", "cloudformation", "cdk", "ansible", "pulumi", "infrastructure", "iac"]
+    },
+    "Configuration": {
+        "description": "Configuration files with environment variables, service endpoints, and application settings.",
+        "files_patterns": ["config.json", "config.yaml", "config.yml", "settings.json", "settings.yaml", "settings.yml",
+        "application.yml", "application.yaml", "env.yaml", "env.yml", ".env", ".ini", ".conf"]
+    },
+    "Installation process": {
+        "description": "Installation, install instructions, setup steps, dependencies, system requirements",
+        "files_patterns": [
+            # Generic / multi-language
+            "Makefile", "install.sh", "bootstrap.sh", "build.sh", "install.bat",
+            "configure", "/configure", "CMakeLists.txt",
+
+            # Python
+            "setup.py", "setup.cfg", "pyproject.toml", "requirements.txt", "Pipfile", "Pipfile.lock", "environment.yml",
+
+            # JavaScript / TypeScript
+            "package.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "tsconfig.json", "vite.config.js", "webpack.config.js",
+
+            # Java
+            "pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts", "gradlew", "gradlew.bat", "mvnw", "mvnw.cmd",
+
+            # Go
+            "go.mod", "go.sum", "main.go",
+
+            # C++
+            "CMakeLists.txt", "*.vcxproj", "*.sln", "conanfile.txt", "conanfile.py", "vcpkg.json",
+
+            # Rust
+            "Cargo.toml", "Cargo.lock",
+
+            # Swift
+            "Package.swift", "Cartfile", "Cartfile.resolved", "Podfile", "Podfile.lock",
+
+            # PHP
+            "composer.json", "composer.lock",
+
+            # Common docs
+            "INSTALL.md", "install.md", "install.rst", "README.md", "readme.md"
+        ]
+    },
+    "Deployment process": {
+        "description": "Scripts and configuration files used to deploy the application to staging or production environments, including cloud deployment, containers, package publishing, and artifact delivery.",
+        "files_patterns": [
+            "deploy.sh",
+            "deployment.sh",
+            "kubernetes.yaml",
+            "k8s.yaml",
+            "k8s.yml",
+            "helmfile.yaml",
+            "helmfile.yml",
+            "Chart.yaml",
+            "values.yaml",
+            "docker-compose.yml",
+            "docker-compose.yaml",
+            "Dockerfile",
+            "Procfile",
+            "app.yaml",                    # e.g. for Google App Engine
+            ".ebextensions",              # AWS Elastic Beanstalk
+            "ecs-params.yml",             # AWS ECS
+            ".elasticbeanstalk",          # AWS EB config dir
+            ".platform.app.yaml",         # Platform.sh
+            "now.json",                   # Vercel
+            "vercel.json",
+            "netlify.toml",
+            "fly.toml",
+            "render.yaml",
+            "cloudbuild.yaml",            # Google Cloud Build
+            "azure-pipelines.yml"
+        ]
+    }
 }
 
 def report(project):
@@ -28,7 +104,7 @@ def report(project):
     for pr in tqdm(filtered_files):
         file_path = pr[0]
         cat = pr[1]
-        im = is_mentioned(category_descriptions[cat], chunks)
+        im = is_mentioned(categories[cat]["description"], chunks)
         if not im:
             report += f"File {file_path} points on {cat.upper()} in your project. But it doesn't seem to be documented\n"
     print(report)
@@ -36,7 +112,7 @@ def report(project):
 def is_mentioned(description, chunks):
     res = map_texts_cosine_with_cache([description], chunks)
     for d in res:
-        for c in d:
+        for i, c in enumerate(d):
             if c > 0.6:
                 return True
     return False
@@ -45,7 +121,7 @@ def is_mentioned(description, chunks):
 def split_readme_to_chunks(doc_path, chunk_size=500, chunk_overlap=50):
     with open(doc_path, "r", encoding="utf-8") as f:
         readme_text = f.read()
-    splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+    splitter = RecursiveCharacterTextSplitter(
         separators=["\n### ", "\n## ", "\n# ", "\n\n", "\n", " "],
         chunk_size=chunk_size,
         chunk_overlap=chunk_overlap
@@ -55,34 +131,11 @@ def split_readme_to_chunks(doc_path, chunk_size=500, chunk_overlap=50):
 
 
 def classify_file(file_path):
-    file_name = os.path.basename(file_path).lower()
     path_lower = file_path.lower()
 
-    # CI/CD patterns
-    ci_cd_keywords = ["github/workflows", ".gitlab-ci", "circleci", "azure-pipelines", "jenkinsfile", "travis.yml", ".drone.yml"]
-    ci_cd_files = ["ci.yml", "ci.yaml", "build.yml", "build.yaml", "pipeline.yml", "pipeline.yaml"]
-
-    # IaC patterns
-    iac_extensions = [".tf", ".tf.json", ".tfvars", ".yaml", ".yml"]
-    iac_keywords = ["terraform", "cloudformation", "cdk", "ansible", "pulumi", "infrastructure", "iac"]
-
-    # Config patterns
-    config_files = [
-        "config.json", "config.yaml", "config.yml", "settings.json", "settings.yaml", "settings.yml",
-        "application.yml", "application.yaml", ".env", "env.yaml", "env.yml"
-    ]
-    config_extensions = [".env", ".ini", ".conf"]
-
-    # CI/CD detection
-    if any(kw in path_lower for kw in ci_cd_keywords) or file_name in ci_cd_files or "ci" in file_name:
-        return "ci_cd"
-
-    # IaC detection
-    if any(kw in path_lower for kw in iac_keywords) or os.path.splitext(file_name)[1] in iac_extensions:
-        return "iac"
-
-    # Config detection
-    if file_name in config_files or os.path.splitext(file_name)[1] in config_extensions:
-        return "config"
+    for key, item in categories.items():
+        fpats = item["files_patterns"]
+        if any(kw in path_lower for kw in fpats):
+            return key
 
     return None

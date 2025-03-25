@@ -10,7 +10,7 @@ import re
 from multiprocessing import Value
 from src.embeddings import map_texts_cosine_with_cache
 from src.comparison import hybrid_score
-from src.files_exclusions import is_file_to_skip
+from src.exclusions import is_file_to_skip
 import time
 import sys
 

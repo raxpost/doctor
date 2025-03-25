@@ -16,5 +16,4 @@ class Project:
         if os.path.exists(os.path.join(project_root, "README.md")):
             self.doc_path = os.path.join(project_root, "README.md")
         else:
-            print("Currently only README.md is supported as documentation, but it was not found in the project")
-            exit()
+            raise Exception("Currently only README.md is supported as documentation, but it was not found in the project")
