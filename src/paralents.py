@@ -273,7 +273,12 @@ def similarity_score(par_ent1, par_ent2):
 def sort_parent_pairs(list1, list2):
     pairs = []
     #for p1, p2 in product(list1, list2):
-    for p1, p2 in tqdm(product(list1, list2), total=len(list1)*len(list2), desc="Analyzing.."):
+    total = len(list1)*len(list2)
+    if total > 50000:
+        print(f"Too many items to compare ({total} operations). Skipping due to potentially too long execution")
+        return pairs
+
+    for p1, p2 in tqdm(product(list1, list2), total=total, desc="Analyzing.."):
         score, total_scores, matched_rights = similarity_score(p1, p2)
         if score > 0:
             p1.total_scores = total_scores
@@ -285,8 +290,8 @@ def sort_parent_pairs(list1, list2):
 
 def report(project):
     parent_instances = collect_files_recursive(project)
-
     doc_parents = collects_doc_parents(project.doc_path)
+    print(f"Found {str(len(parent_instances))} code items and {str(len(doc_parents))} doc items")
     pairs = sort_parent_pairs(parent_instances, doc_parents)
 
     print("REPORT:")

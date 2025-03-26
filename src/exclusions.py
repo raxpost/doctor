@@ -27,7 +27,7 @@ common_terms = ["type", "name", "and", "number", "false", "description", "text",
 "process", "memory", "storage", "disk", "cpu", "load", "limit", "timeout", "retry", "queue",
 "event", "listener", "handler", "callback", "stream", "buffer", "packet",
 "binary", "hex", "base64", "encode", "decode", "serialize", "deserialize", "parse", "compile",
-"render", "view", "model", "controller", "route", "test", "status", "quota", "date", "self", "this", "warning", "info", "debug", "main", "method", "mode", 'undefined', 'production', "development", "prd", "prod", "dev", "stage", "yes", "no", "NaN"
+"render", "view", "model", "controller", "route", "test", "status", "quota", "date", "self", "this", "warning", "info", "debug", "main", "method", "mode", 'undefined', 'production', "development", "prd", "prod", "dev", "stage", "yes", "no", "NaN", "bearer"
 ]
 
 def is_http_content_or_header(s):
@@ -46,7 +46,7 @@ def is_http_content_or_header(s):
     )
 
 def is_in_common_tech_terms(word):
-    word = word.lower()
+    word = word.lower().strip()
     if word in file_extensions:
         return True
     if "." + word in file_extensions:

@@ -11,7 +11,7 @@ def start(base):
     try:
         p = Project(base)
         common_finding_report(p)
-        parallel_entities_report(p)
+        #parallel_entities_report(p)
         constants_report(p)
     except Exception as e:
         print(e)

@@ -55,7 +55,7 @@ categories = {
         ]
     },
     "Deployment process": {
-        "description": "Scripts and configuration files used to deploy the application to staging or production environments, including cloud deployment, containers, package publishing, and artifact delivery.",
+        "description": "Deployment scripts and configuration files used to deploy the application to development, staging or production environments, including cloud deployment, containers, docker, package publishing, and artifact delivery.",
         "files_patterns": [
             "deploy.sh",
             "deployment.sh",
@@ -104,15 +104,17 @@ def report(project):
     for pr in tqdm(filtered_files):
         file_path = pr[0]
         cat = pr[1]
-        im = is_mentioned(categories[cat]["description"], chunks)
+        im = is_mentioned(cat, chunks)
         if not im:
             report += f"File {file_path} points on {cat.upper()} in your project. But it doesn't seem to be documented\n"
     print(report)
 
-def is_mentioned(description, chunks):
+def is_mentioned(cat, chunks):
+    description = categories[cat]["description"]
     res = map_texts_cosine_with_cache([description], chunks)
     for d in res:
         for i, c in enumerate(d):
+            #print(c, cat, chunks[i])
             if c > 0.6:
                 return True
     return False
