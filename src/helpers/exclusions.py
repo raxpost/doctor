@@ -2,8 +2,13 @@ import os
 
 def is_file_to_skip(file_path):
     file = os.path.basename(file_path)
-    paths_exclusions = ["node_modules", "test", "documentation", ".venv", "venv", "virtualenv", ".git", "schema", "build", "static", "CHANGELOG", "CREDITS", "LEGAL", "LICENSE", "MANIFEST", "dist/"]
-    exclusions = ["README.md", "package.json", "package-lock.json", "pyproject.toml", "pdm.lock", "__init__"]
+    paths_exclusions = ["node_modules", "documentation", ".venv", "venv", "virtualenv", ".git", "schema", "build", "static", "CHANGELOG", "CREDITS", "LEGAL", "LICENSE", "MANIFEST", "dist/", "out/", "target/", "__pycache__", ".idea", ".vscode", ".DS_Store",
+    ".coverage", ".pytest_cache", "coverage.xml", "tmp",
+    ".gradle", ".next", ".nuxt", "coverage", "public", "env", ".env",
+    ".cache", "jspm_packages", "bower_components"]
+    exclusions = ["README.md", "package-lock.json", "pdm.lock", "__init__"]
+    if os.getenv("ALLOW_TEST_PATHS") != "yes":
+        paths_exclusions.append("test")
     return any(pe in file_path for pe in paths_exclusions) or file in exclusions
 
 

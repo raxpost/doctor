@@ -1,4 +1,31 @@
+import ast
 import re
+from src.languages.abstract import Language
+
+class LanguagePlugin(Language):
+    def __init__(self, file_path):
+        with open(file_path, 'r', encoding='utf-8') as f:
+            txt = f.read()
+        self.content = txt
+        self.file_path = file_path
+
+    # consider using ast
+    def fetch_env_vars(self):
+        patterns = [
+            re.compile(r"process\.env\.([A-Z0-9_]+)"),
+            re.compile(r"process\.env\[['\"]([A-Z0-9_]+)['\"]\]"),
+        ]
+        matches_for_all_patterns = []
+        for p in patterns:
+            matches = p.findall(self.content)
+            if matches:
+                matches_for_all_patterns += matches
+        return list(set(matches_for_all_patterns))
+    
+
+    def fetch_comparisons(self):
+        comp = StringCheckExtractor(self.content, self.file_path)
+        return comp.important_constants
 
 # tree-sitter-languages is pain, just regexps here
 # Covers python strings comparisons:

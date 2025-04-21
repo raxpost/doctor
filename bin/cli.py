@@ -1,23 +1,34 @@
 import os
+import traceback
 
 def start(base):
-    from src.paralents import report as parallel_entities_report
-    from src.validation import report as constants_report
-    from src.common import report as common_finding_report
-    from src.project import Project
+    from src.ucases.parallents import report as parallel_entities_report
+    from src.ucases.validation import report as constants_report
+    from src.ucases.common import report as common_finding_report
+    from src.ucases.endpoints import report as endpoints_report
+    from src.core.project import Project
+
     if not os.path.isdir(base):
         print(f"Path {base} doesn't exist")
         exit()
     try:
+        ucases_to_run = [
+            #common_finding_report,
+            #parallel_entities_report,
+            #constants_report,
+            endpoints_report
+        ]
         p = Project(base)
-        common_finding_report(p)
-        #parallel_entities_report(p)
-        constants_report(p)
+        for uc in ucases_to_run:
+            r = uc(p)
+            r.print()
     except Exception as e:
         print(e)
+        traceback.print_exc()
 
 
 MULTI_FOLDER = os.getenv("MULTI_FOLDER")
+PROJECT_PATH = os.getenv("PROJECT_PATH")
 if MULTI_FOLDER:
     for name in os.listdir(MULTI_FOLDER):
         full_path = os.path.join(MULTI_FOLDER, name)
@@ -25,5 +36,5 @@ if MULTI_FOLDER:
             print(f"============ PROJECT {name} ==============")
             start(full_path)
 else:
-    base = (input("Input the full path to the project: ")).strip()
+    base = PROJECT_PATH if PROJECT_PATH else (input("Input the full path to the project: ")).strip()
     start(base)

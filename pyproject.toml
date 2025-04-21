@@ -1,15 +1,15 @@
 [project]
-name = "doctor"
+name = "wiki4"
 version = "0.1.0"
 description = "Default template for PDM package"
 authors = [
-    {name = "Roman Krivtsov", email = "rax@doctor.ai"},
+    {name = "Roman Krivtsov", email = "roman.krivtsov@contractors.roche.com"},
 ]
 dependencies = [
-    "numpy>=2.2.3",
+    "numpy>=2.2.4",
     "fuzzywuzzy>=0.18.0",
     "tqdm>=4.67.1",
-    "sentence-transformers>=3.4.1",
+    "sentence-transformers>=4.0.1",
     "scikit-learn>=1.6.1",
     "python-Levenshtein>=0.27.1",
     "levenshtein>=0.27.1",
@@ -19,9 +19,13 @@ dependencies = [
 ]
 requires-python = "==3.13.*"
 readme = "README.md"
-license = {text = "BSL"}
+license = {text = "MIT"}
 
 
 [tool.pdm]
 distribution = false
-package-dir = {"" = "."}
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "pytest>=8.3.5",
+]

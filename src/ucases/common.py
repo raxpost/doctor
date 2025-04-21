@@ -1,18 +1,21 @@
+# Trying to scan files structure in order to find common markers (see categories)
+# If it's not documented, it will be recommended
 import os
-from src.exclusions import is_file_to_skip
+from src.helpers.exclusions import is_file_to_skip
+from src.core.report import Report
+from src.helpers.readme import split_readme_to_chunks
 from tqdm import tqdm
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.text_splitter import CharacterTextSplitter
-from src.embeddings import map_texts_cosine_with_cache
+from src.helpers.comparison import map_texts_cosine_with_cache, hybrid_strings_lists_comparison
 
 categories = {
     "CI/CD": {
         "description": "Continuous integration, Continuous delivery, CI/CD pipelines for automated build, test, and deployment using GitHub Actions, Jenkins, or GitLab CI.",
         "files_patterns":  ["github/workflows", ".gitlab-ci", "circleci", "azure-pipelines", "jenkinsfile", "travis.yml", ".drone.yml", "ci.yml", "ci.yaml", "build.yml", "build.yaml", "pipeline.yml", "pipeline.yaml", "serverless.yml"],
     },
+
     "Infrastructure as Code": {
         "description": "infrastructure, IaC, iac, Infrastructure as code for provisioning resources using Terraform, CloudFormation, or Ansible, infrastructure",
-        "files_patterns": [".tf", ".tf.json", ".tfvars", "terraform", "cloudformation", "cdk", "ansible", "pulumi", "infrastructure", "iac"]
+        "files_patterns": [".tf", ".tf.json", ".tfvars", "terraform", "cloudformation", "cdk", "ansible", "pulumi", "infrastructure", "/iac/", "/iac."]
     },
     "Configuration": {
         "description": "Configuration files with environment variables, service endpoints, and application settings.",
@@ -20,7 +23,7 @@ categories = {
         "application.yml", "application.yaml", "env.yaml", "env.yml", ".env", ".ini", ".conf"]
     },
     "Installation process": {
-        "description": "Installation, install instructions, setup steps, dependencies, system requirements",
+        "description": "Installation, build, install instructions, dependencies, system requirements",
         "files_patterns": [
             # Generic / multi-language
             "Makefile", "install.sh", "bootstrap.sh", "build.sh", "install.bat",
@@ -83,22 +86,31 @@ categories = {
             "cloudbuild.yaml",            # Google Cloud Build
             "azure-pipelines.yml"
         ]
+    },
+    "Tests": {
+        "description": "Tests, mocks, test coverage, unit tests, end2end tests, regression tests, integration tests, system tests",
+        "files_patterns": [
+          "test",
+          "spec.",
+          "jest",
+          "Test",
+          "mock"
+        ]
     }
 }
 
 def report(project):
-    chunks = split_readme_to_chunks(project.doc_path)
-    report = ""
+    r = Report("Common recommendations")
+    chunks = split_readme_to_chunks(project.doc_path, 100, 25)
     filtered_files = []
     for witem in project.walk_items:
         root = witem.root
         files = witem.files
         for file in files:
             file_path = os.path.join(root, file)
-            if is_file_to_skip(file_path):
-                continue
             cat = classify_file(file_path)
             if cat:
+                r.debug_add("(file_path, cat {}, {})", (file_path, cat))
                 filtered_files.append((file_path, cat))
 
     for pr in tqdm(filtered_files):
@@ -106,30 +118,19 @@ def report(project):
         cat = pr[1]
         im = is_mentioned(cat, chunks)
         if not im:
-            report += f"File {file_path} points on {cat.upper()} in your project. But it doesn't seem to be documented\n"
-    print(report)
+            r.advice_add("File {} points on {} in your project. But it doesn't seem to be documented", (file_path, cat.upper()))
+    return r
 
 def is_mentioned(cat, chunks):
     description = categories[cat]["description"]
     res = map_texts_cosine_with_cache([description], chunks)
+    #res = map_texts_fuzz([description], chunks)
     for d in res:
         for i, c in enumerate(d):
-            #print(c, cat, chunks[i])
-            if c > 0.6:
+            #print(c, description, chunks[i])
+            if c > 0.5:
                 return True
     return False
-
-
-def split_readme_to_chunks(doc_path, chunk_size=500, chunk_overlap=50):
-    with open(doc_path, "r", encoding="utf-8") as f:
-        readme_text = f.read()
-    splitter = RecursiveCharacterTextSplitter(
-        separators=["\n### ", "\n## ", "\n# ", "\n\n", "\n", " "],
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap
-    )
-    chunks = splitter.split_text(readme_text)
-    return chunks
 
 
 def classify_file(file_path):
