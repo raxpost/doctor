@@ -6,7 +6,7 @@
 
 ```
 brew install python
-pip install pdm
+brew install pdm
 pdm install
 ```
 ### Windows
